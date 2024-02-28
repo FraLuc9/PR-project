@@ -58,7 +58,7 @@ function odometry = readTrajectory(filename)
     # let's not count the ids as odometry measurements should be ordered
     #odometry = zeros(7,1);
     odometry = zeros(6,1);
-    i = 1
+    i = 1;
     while ~feof(file)
         line = strsplit(fgetl(file));
         #loses 2 decimals worth of precision
@@ -69,20 +69,25 @@ function odometry = readTrajectory(filename)
     fclose(file);
 endfunction
 
-function [seq, pose, points] = extractMeasurements(filename)
+
+# by cycling through all the measurements files it puts together 
+# a big matrix with every landmark measurement in the image frame
+function [pose, da, points] = extractMeasurements(filename)
             
     seq = 0;
     pose = zeros(6,1);
-    points = zeros(4,1);
+    
     file = fopen(filename, "r");
-
+    das = zeros(3,1);
+    points = zeros(2,1);
     if file == -1
         error("Unable to open file")
     end
-    i = 1;
+    i = size(points, 2) + 1;
     while ~feof(file)
         line = strsplit(fgetl(file));
         switch line{1}
+        # Assuming data files formatted as given, seq always gets updated first
             case "seq:"
                 seq = str2num(line{2});
             case "gt_pose:"
@@ -92,13 +97,19 @@ function [seq, pose, points] = extractMeasurements(filename)
                 #of course noisy odometry goes in the first 3 positions
                 pose(1:3) = str2double(line(2:4));
             case "point"
-                points(:,i) = str2double(line(2:5));
+                #updates data association
+                da(1,i) = seq;
+                da(2,i) = str2num(line{2});
+                da(3,i) = str2num(line{3});
+                points(:,i) = str2double(line(4:5));
                 i +=1;
         end
     end
 
     fclose(file);
 endfunction
+
+
 
 #returns matrix where every column represents a 3D landmark position
 #ignores indices as it expects the .dat file to have them ordered already
