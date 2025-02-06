@@ -6,7 +6,7 @@ source "./dataExtractUtils.m"
 source "./triangulation.m"
 
 
-[odometry,gt_odom] = readTrajectory();
+[odometry,gt_odom, XR, XR_true] = readTrajectory();
 
 
 [K,T,z_near,z_far,width,height] = extractCamParams();
@@ -35,6 +35,7 @@ meas = extractMeasurements();
 
 printf("building A...\n")
 A = cell(1,1000);
+A_gt = cell(1,1000);
 % for i = 0:999
 %     printf("triangulating landmark ")
 %     disp(i)
@@ -55,15 +56,24 @@ for j = 1:length(meas)
     disp(j-1)
     for i = 0:999
         if isKey(meas(j),i)
-            T_j = v2t3D(odometry(:,j))*T;
-            C_j = K*inv(T_j)(1:3,:);
+            Cam_in_world = XR(:,:,j)*T;
+            World_in_image = K*inv(Cam_in_world)(1:3,:);
             p_j = meas(j)(i);
             x = p_j(1);
             y = p_j(2);
-            P1 = C_j(1,:);
-            P2 = C_j(2,:);
-            P3 = C_j(3,:);
+            P1 = World_in_image(1,:);
+            P2 = World_in_image(2,:);
+            P3 = World_in_image(3,:);
             A{i+1} = [A{i+1}; x*P3-P1; y*P3-P2];
+
+            %%% test
+
+            Cam_in_world_gt = XR_true(:,:,j)*T;
+            World_in_image_gt = K*inv(Cam_in_world_gt)(1:3,:);
+            P1_gt = World_in_image_gt(1,:);
+            P2_gt = World_in_image_gt(2,:);
+            P3_gt = World_in_image_gt(3,:);
+            A_gt{i+1} = [A_gt{i+1}; x*P3_gt-P1_gt; y*P3_gt-P2_gt];
         end
     end
 end
@@ -102,13 +112,21 @@ printf("done!\n")
 
 printf("performing SVD on A...\n")
 
-X_ig = cell(1,1000);
+X_ig = zeros(3,1);
+X_gt = zeros(3,1);
 for i = 1:1000
-    if(size(A{i},1)) > 5
-    [~,~,V] = svd(A{i});
+    if(size(A{i},1)) >=4
+        [~,~,V] = svd(A{i});
     
         point = V(:,end);
-        X_ig{i} = point/point(end);
+        X_ig(:,i) = (point/point(end))(1:3);
+
+        [~,~,V_gt] = svd(A_gt{i});
+        point_gt = V_gt(:,end);
+        X_gt(:,i) = (point_gt/point_gt(end))(1:3);
+    else
+        X_ig(:,i) = zeros(3,1);
+        X_gt(:,i) = zeros(3,1);
     end
 end
 
