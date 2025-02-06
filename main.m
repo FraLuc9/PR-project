@@ -30,22 +30,87 @@ meas = extractMeasurements();
 %             ao(:,end+1)= p(1:3);
 %         end
 % function A = col(meas,T,K, odom)
+
+
+
 printf("building A...\n")
 A = cell(1,1000);
-for i = 0:999
-    printf("triangulating landmark ")
-    disp(i)
-    printf("...\n")
-    for j = 1:length(meas)-1
-        if isKey(meas(j), i)
+% for i = 0:999
+%     printf("triangulating landmark ")
+%     disp(i)
+%     printf("...\n")
+%     for j = 1:length(meas)
+%         if isKey(meas(j), i)
+%             T_j = v2t3D(odometry(:,j))*T;
+%             C_j = K * [T_j(1:3,1:3) T_j(1:3,4)];
+%             p_j = meas(j)(i);
+%             A{i+1} = [A{i+1}; p_j(2)*C_j(3,:)-C_j(2,:); p_j(1)*C_j(3,:)-C_j(1,:)];
+%         end
+%     end
+% end
+% endfunction
+
+for j = 1:length(meas)
+    printf("scanning measurement ")
+    disp(j-1)
+    for i = 0:999
+        if isKey(meas(j),i)
             T_j = v2t3D(odometry(:,j))*T;
-            C_j = K * [T_j(1:3,1:3) T_j(1:3,4)];
+            C_j = K*inv(T_j)(1:3,:);
             p_j = meas(j)(i);
-            A{i+1} = [A{i+1}; p_j(2)*C_j(3,:)-C_j(2,:); p_j(1)*C_j(3,:)-C_j(1,:)];
+            x = p_j(1);
+            y = p_j(2);
+            P1 = C_j(1,:);
+            P2 = C_j(2,:);
+            P3 = C_j(3,:);
+            A{i+1} = [A{i+1}; x*P3-P1; y*P3-P2];
         end
     end
 end
-% endfunction
+
+% A = [];
+% i = 0;
+% for j = 1:length(meas)
+%         if isKey(meas(j),6)
+%         T_j = v2t3D(gt_odom(:,j))*T;
+%         C_j = K*inv(T_j)(1:3,:);
+%         p_j = meas(j)(6);
+%         x = p_j(1);
+%         y = p_j(2);
+%         P1 = C_j(1,:);
+%         P2 = C_j(2,:);
+%         P3 = C_j(3,:);
+%         A = [A; x*P3-P1; y*P3-P2];
+%         i++;
+%         printf("\n")
+%         printf("times landmark 6 spotted: ")
+%         disp(i)
+%         printf("measurement: ")
+%         disp(j)
+%         printf("odometry measurements: ")
+%         disp(gt_odom(:,j))
+%         printf("camera transform:\n")
+%         disp(T_j)
+%         printf("point coordinates in camera frame: ")
+%         disp(meas(j)(6))
+%         printf("==========================")
+            
+%         end
+% end
+
+printf("done!\n")
+
+printf("performing SVD on A...\n")
+
+X_ig = cell(1,1000);
+for i = 1:1000
+    if(size(A{i},1)) > 5
+    [~,~,V] = svd(A{i});
+    
+        point = V(:,end);
+        X_ig{i} = point/point(end);
+    end
+end
 
 printf("done!\n")
 
