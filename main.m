@@ -4,10 +4,11 @@ clc
 
 source "./dataExtractUtils.m"
 source "./triangulation.m"
-
+source "./pose_projection.m"
 
 [odometry,gt_odom, XR, XR_true] = readTrajectory();
 
+global K T z_near z_far width height;
 
 [K,T,z_near,z_far,width,height] = extractCamParams();
 
@@ -125,15 +126,15 @@ for i = 1:1000
         point_gt = V_gt(:,end);
         X_gt(:,i) = (point_gt/point_gt(end))(1:3);
     else
-        X_ig(:,i) = zeros(3,1);
-        X_gt(:,i) = zeros(3,1);
+        X_ig(:,i) = [0;0;-1];
+        X_gt(:,i) = [0;0;-1];
     end
 end
 
 printf("done!\n")
 
 
-        
+ao = projectPoint(XR(:,:,1), X_ig(:,7))
 %     end
 % end
 % ao = ao(:,2:end);

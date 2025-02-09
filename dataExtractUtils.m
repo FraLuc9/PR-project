@@ -11,6 +11,8 @@ function [K,T,z_near,z_far,width,height] = extractCamParams()
         error("Unable to open file");
     end
 
+    global K T z_near z_far width height;
+
     K = zeros(3, 3);
     T = zeros(4, 4);
     z_near = 0;
