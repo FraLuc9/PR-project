@@ -1,4 +1,4 @@
-1;
+source "./utils.m"
 
 % [K,T,z_near,z_far,width,height] = extractCamParams();
 
@@ -56,8 +56,8 @@ function [point_in_image, p_im, im_z] = projectPoint(Xr, Xl)
     point_in_image = p_im(1:2);
 endfunction
 
-function [valid, e, Jr, Jl] = errorAndJacobian(Xr, Xl, Z)
-    % INSERT FLAGS FOR WHEN POINT IS NOT VALID (I.E. OUTSIDE CAMERA BOUNDARIES OR NO PREDICTION)?
+function [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z)
+    
     global K T;
     
     valid = false;
@@ -96,8 +96,10 @@ function [valid, e, Jr, Jl] = errorAndJacobian(Xr, Xl, Z)
     valid = true;
 endfunction
 
-function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, pose_dim, landmark_dim, kernel_threshold)
+function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, kernel_threshold)
 
+    pose_dim = 6;
+    landmark_dim = 3;
     num_poses = length(XR);
     num_landmarks = length(XL);
     system_size = pose_dim * num_poses + landmark_dim * num_landmarks;
@@ -107,23 +109,26 @@ function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, pose_dim, l
     chi_tot = 0;
     inliers = 0;
     assert(length(XR) == length(Zl));
-    for i = 1 : length(XR)
+    for i = 1 : length(Zl)
         for j = keys(Zl(i))
+
+            Omega = eye(2);
+            Omega *= 1e-1;
 
             # landmark ids are numbered starting from 0
             k = j{1};
-            
+
             Xr = XR(:,:,i);
             Xl = XL(:,k+1);
             Z = Zl(i)(k);
-            [valid, err, Jr, Jl] = errorAndJacobian(Xr, Xl, Z);
+            [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z);
             if (!valid)
                 continue;
             end
 
-            chi = err' * err;
+            chi = e' * Omega * e;
             if chi > kernel_threshold
-                err *= sqrt(kernel_threshold / chi);
+                Omega *= sqrt(kernel_threshold / chi);
                 chi = kernel_threshold;
             else
                 inliers++;
@@ -131,12 +136,12 @@ function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, pose_dim, l
 
             chi_tot += chi;
 
-            H_pose_pose = Jr' * Jr;
-            H_pose_proj = Jr' * Jl;
-            H_proj_pose = Jl' * Jr;
-            H_proj_proj = Jl' * Jl;
-            b_pose = Jr' * err;
-            b_proj = Jl' * err;
+            H_pose_pose = Jr' * Omega * Jr;
+            H_pose_proj = Jr' * Omega * Jl;
+            H_proj_pose = Jl' * Omega * Jr;
+            H_proj_proj = Jl' * Omega * Jl;
+            b_pose = Jr' * e;
+            b_proj = Jl' * e;
 
             #H and b indexes
             pose_idx = 1 + (i - 1) * pose_dim;

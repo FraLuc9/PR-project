@@ -5,6 +5,7 @@ clc
 source "./dataExtractUtils.m"
 source "./triangulation.m"
 source "./pose_projection.m"
+source "./total_LS.m"
 
 [odometry,gt_odom, XR, XR_true] = readTrajectory();
 
@@ -36,7 +37,7 @@ meas = extractMeasurements();
 
 printf("Triangulating points...\n")
 A = cell(1,1000);
-% A_gt = cell(1,1000);
+A_gt = cell(1,1000);
 % for i = 0:999
 %     printf("triangulating landmark ")
 %     disp(i)
@@ -69,12 +70,12 @@ for i = 1:length(meas)
 
             %%% test
 
-            % Cam_in_world_gt = XR_true(:,:,j)*T;
-            % World_in_image_gt = K*inv(Cam_in_world_gt)(1:3,:);
-            % P1_gt = World_in_image_gt(1,:);
-            % P2_gt = World_in_image_gt(2,:);
-            % P3_gt = World_in_image_gt(3,:);
-            % A_gt{i+1} = [A_gt{i+1}; x*P3_gt-P1_gt; y*P3_gt-P2_gt];
+        Cam_in_world_gt = XR_true(:,:,i)*T;
+        World_in_image_gt = K*inv(Cam_in_world_gt)(1:3,:);
+        P1_gt = World_in_image_gt(1,:);
+        P2_gt = World_in_image_gt(2,:);
+        P3_gt = World_in_image_gt(3,:);
+        A_gt{k+1} = [A_gt{k+1}; x*P3_gt-P1_gt; y*P3_gt-P2_gt];
     end
 end
 
@@ -123,26 +124,15 @@ for i = 1:1000
         point = V(:,end);
         X_ig(:,i) = (point/point(end))(1:3);
 
-    %     [~,~,V_gt] = svd(A_gt{i});
-    %     point_gt = V_gt(:,end);
-    %     X_gt(:,i) = (point_gt/point_gt(end))(1:3);
-    % else
-    %     X_ig(:,i) = [0;0;-1];
-    %     X_gt(:,i) = [0;0;-1];
+        [~,~,V_gt] = svd(A_gt{i});
+        point_gt = V_gt(:,end);
+        X_gt(:,i) = (point_gt/point_gt(end))(1:3);
+    else
+        X_ig(:,i) = [0;0;-1];
+        X_gt(:,i) = [0;0;-1];
     end
 end
 
 printf("done!\n")
 
 
-ao = projectPoint(XR(:,:,1), X_ig(:,7))
-%     end
-% end
-% ao = ao(:,2:end);
-
-% points = {};
-% cam_poses = {};
-% for i = 1 : length(meas)
-%     if(isKey(meas(i),6))
-%         T = v2t3D(gt_odom(:,i));
-%         C = K * [T(1:3,1:3)]

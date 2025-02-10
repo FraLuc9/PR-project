@@ -31,3 +31,17 @@ function T = v2t3D(p)
     T(1:2,4) = p(1:2);
 endfunction
 
+function S = skew(t)
+    S = [0    -t(3)  t(2);
+         t(3)  0    -t(1);
+        -t(2)  t(1)  0];
+endfunction
+
+function r = flatten4(X)
+    r = [X(1:3, 1); X(1:3,2); X(1:3,3); X(1:3,4)];
+endfunction
+
+function r = flatten3(R)
+    r = [R(1:3, 1); R(1:3,2); R(1:3,3)];
+endfunction
+
