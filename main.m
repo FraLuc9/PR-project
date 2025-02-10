@@ -34,9 +34,9 @@ meas = extractMeasurements();
 
 
 
-printf("building A...\n")
+printf("Triangulating points...\n")
 A = cell(1,1000);
-A_gt = cell(1,1000);
+% A_gt = cell(1,1000);
 % for i = 0:999
 %     printf("triangulating landmark ")
 %     disp(i)
@@ -52,30 +52,29 @@ A_gt = cell(1,1000);
 % end
 % endfunction
 
-for j = 1:length(meas)
-    printf("scanning measurement ")
-    disp(j-1)
-    for i = 0:999
-        if isKey(meas(j),i)
-            Cam_in_world = XR(:,:,j)*T;
-            World_in_image = K*inv(Cam_in_world)(1:3,:);
-            p_j = meas(j)(i);
-            x = p_j(1);
-            y = p_j(2);
-            P1 = World_in_image(1,:);
-            P2 = World_in_image(2,:);
-            P3 = World_in_image(3,:);
-            A{i+1} = [A{i+1}; x*P3-P1; y*P3-P2];
+for i = 1:length(meas)
+    % printf("scanning measurement ")
+    for j = keys(meas(i))
+        k = j{1};
+
+        Cam_in_world = XR(:,:,i)*T;
+        World_in_image = K*inv(Cam_in_world)(1:3,:);
+        p_j = meas(i)(k);
+        x = p_j(1);
+        y = p_j(2);
+        P1 = World_in_image(1,:);
+        P2 = World_in_image(2,:);
+        P3 = World_in_image(3,:);
+        A{k+1} = [A{k+1}; x*P3-P1; y*P3-P2];
 
             %%% test
 
-            Cam_in_world_gt = XR_true(:,:,j)*T;
-            World_in_image_gt = K*inv(Cam_in_world_gt)(1:3,:);
-            P1_gt = World_in_image_gt(1,:);
-            P2_gt = World_in_image_gt(2,:);
-            P3_gt = World_in_image_gt(3,:);
-            A_gt{i+1} = [A_gt{i+1}; x*P3_gt-P1_gt; y*P3_gt-P2_gt];
-        end
+            % Cam_in_world_gt = XR_true(:,:,j)*T;
+            % World_in_image_gt = K*inv(Cam_in_world_gt)(1:3,:);
+            % P1_gt = World_in_image_gt(1,:);
+            % P2_gt = World_in_image_gt(2,:);
+            % P3_gt = World_in_image_gt(3,:);
+            % A_gt{i+1} = [A_gt{i+1}; x*P3_gt-P1_gt; y*P3_gt-P2_gt];
     end
 end
 
@@ -109,25 +108,27 @@ end
 %         end
 % end
 
-printf("done!\n")
+% printf("done!\n")
 
-printf("performing SVD on A...\n")
+% printf("performing SVD on A...\n")
 
 X_ig = zeros(3,1);
 X_gt = zeros(3,1);
 for i = 1:1000
+    
+    % at least 2 hits to triangulate
     if(size(A{i},1)) >=4
         [~,~,V] = svd(A{i});
     
         point = V(:,end);
         X_ig(:,i) = (point/point(end))(1:3);
 
-        [~,~,V_gt] = svd(A_gt{i});
-        point_gt = V_gt(:,end);
-        X_gt(:,i) = (point_gt/point_gt(end))(1:3);
-    else
-        X_ig(:,i) = [0;0;-1];
-        X_gt(:,i) = [0;0;-1];
+    %     [~,~,V_gt] = svd(A_gt{i});
+    %     point_gt = V_gt(:,end);
+    %     X_gt(:,i) = (point_gt/point_gt(end))(1:3);
+    % else
+    %     X_ig(:,i) = [0;0;-1];
+    %     X_gt(:,i) = [0;0;-1];
     end
 end
 

@@ -8,6 +8,22 @@ global K T z_near z_far width height;
 # Xl landmark pose in world
 # Z landmark measurement in image frame
 
+function idx = pindex(p_index, pose_dim, landmark_dim, num_poses, num_landmarks)
+    if (p_index > num_poses)
+        idx = -1;
+        return;
+    end
+    idx = 1 + (p_index - 1) * pose_dim;
+endfunction
+
+function idx = lindex(l_index, pose_dim, landmark_dim, num_poses, num_landmarks)
+    if(l_index > num_landmarks)
+        idx = -1;
+        return;
+    end
+    idx = 1 + (num_poses) * pose_dim + (l_index - 1) * landmark_dim;
+endfunction
+
 function S = skew(t)
     S = [0    -t(3)  t(2);
          t(3)  0    -t(1);
@@ -18,8 +34,10 @@ function [point_in_image, p_im, im_z] = projectPoint(Xr, Xl)
     global K T z_near z_far width height;
     
     point_in_image = [-1;-1];
+    p_im = [-1;-1];
+    im_z = -1;
 
-    world_in_cam = inv(Xr*T);
+    world_in_cam = inv(Xr * T);
     point_in_cam = world_in_cam(1:3, 1:3)*Xl + world_in_cam(1:3,4);
     if (point_in_cam < z_near || point_in_cam > z_far)
         return;
@@ -46,7 +64,7 @@ function [valid, e, Jr, Jl] = errorAndJacobian(Xr, Xl, Z)
     e = [0; 0];
     
     # considering a robot SE(3) glued to the 2D plane, make it 2D (SE(2)) later 
-    Jr = zeros(3, 6);
+    Jr = zeros(2, 6);
     Jl = zeros(2, 3);
 
     
@@ -80,7 +98,8 @@ endfunction
 
 function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, pose_dim, landmark_dim, kernel_threshold)
 
-
+    num_poses = length(XR);
+    num_landmarks = length(XL);
     system_size = pose_dim * num_poses + landmark_dim * num_landmarks;
 
     H = zeros(system_size, system_size);
@@ -89,36 +108,53 @@ function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, pose_dim, l
     inliers = 0;
     assert(length(XR) == length(Zl));
     for i = 1 : length(XR)
-        for j = 0 : length(XL)-1
-            if (isKey(Zl(i),j))
-                Xr = XR(:,:,i);
-                Xl = XL(j);
-                Z = Zl(i)(j);
-                [valid, err, Jr, Jl] = errorAndJacobian(Xr, Xl, Z);
-                if (!valid)
-                    continue;
-                end
+        for j = keys(Zl(i))
 
-                chi = err' * err;
-                if chi > kernel_threshold
-                    err *= sqrt(kernel_threshold / chi);
-                    chi = kernel_threshold;
-                else
-                    inliers++;
-                end
-
-                chi_tot += chi;
-
-                H_pose_pose = Jr' * Jr;
-                H_pose_proj = Jr' * Jl;
-                H_proj_proj = Jl' * Jl;
-                b_pose = Jr' * err;
-                b_proj = Jl' * err;
-
-                #H and b indexes
+            # landmark ids are numbered starting from 0
+            k = j{1};
+            
+            Xr = XR(:,:,i);
+            Xl = XL(:,k+1);
+            Z = Zl(i)(k);
+            [valid, err, Jr, Jl] = errorAndJacobian(Xr, Xl, Z);
+            if (!valid)
+                continue;
             end
+
+            chi = err' * err;
+            if chi > kernel_threshold
+                err *= sqrt(kernel_threshold / chi);
+                chi = kernel_threshold;
+            else
+                inliers++;
+            end
+
+            chi_tot += chi;
+
+            H_pose_pose = Jr' * Jr;
+            H_pose_proj = Jr' * Jl;
+            H_proj_pose = Jl' * Jr;
+            H_proj_proj = Jl' * Jl;
+            b_pose = Jr' * err;
+            b_proj = Jl' * err;
+
+            #H and b indexes
+            pose_idx = 1 + (i - 1) * pose_dim;
+            landmark_idx = 1 + num_poses * pose_dim + k * landmark_dim;
+
+            H(pose_idx : pose_idx + pose_dim - 1, pose_idx : pose_idx + pose_dim - 1) += H_pose_pose;
+
+            H(pose_idx : pose_idx + pose_dim - 1, landmark_idx : landmark_idx + landmark_dim - 1) += H_pose_proj;
+
+            H(landmark_idx : landmark_idx + landmark_dim - 1, pose_idx : pose_idx + pose_dim - 1) += H_proj_pose;
+
+            H(landmark_idx : landmark_idx + landmark_dim - 1, landmark_idx : landmark_idx + landmark_dim - 1) += H_proj_proj;
+
+            b(pose_idx : pose_idx + pose_dim - 1) = b_pose;
+
+            b(landmark_idx : landmark_idx + landmark_dim - 1) = b_proj;
+            
         end
     end
-
-    
+ 
 endfunction
