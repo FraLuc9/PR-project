@@ -24,6 +24,7 @@ function idx = lindex(l_index, pose_dim, landmark_dim, num_poses, num_landmarks)
     idx = 1 + (num_poses) * pose_dim + (l_index - 1) * landmark_dim;
 endfunction
 
+
 function S = skew(t)
     S = [0    -t(3)  t(2);
          t(3)  0    -t(1);
@@ -39,7 +40,7 @@ function [point_in_image, p_im, im_z] = projectPoint(Xr, Xl)
 
     world_in_cam = inv(Xr * T);
     point_in_cam = world_in_cam(1:3, 1:3)*Xl + world_in_cam(1:3,4);
-    if (point_in_cam < z_near || point_in_cam > z_far)
+    if (point_in_cam(3) < z_near || point_in_cam(3) > z_far)
         return;
     end
 
@@ -67,6 +68,9 @@ function [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z)
     Jr = zeros(2, 6);
     Jl = zeros(2, 3);
 
+    if(Xl == [0;0;-1])
+        return;
+    end
     
     cam_in_world = Xr*T;
     # 3rd row/col always 0 0 1 as rotation around z axis
@@ -80,7 +84,7 @@ function [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z)
 
     [Z_hat, p_im, im_z] = projectPoint(Xr, Xl);
     if (Z_hat < 0)
-        return
+        return;
     end
     e = Z_hat - Z;
 
@@ -94,6 +98,7 @@ function [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z)
     Jr = Jp * K * J_wr;
     Jl = Jp * K * J_wl;
     valid = true;
+
 endfunction
 
 function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, kernel_threshold)
@@ -108,27 +113,30 @@ function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, kernel_thre
     b = zeros(system_size, 1);
     chi_tot = 0;
     inliers = 0;
+
     assert(length(XR) == length(Zl));
     for i = 1 : length(Zl)
         for j = keys(Zl(i))
 
-            Omega = eye(2);
-            Omega *= 1e-1;
+            Omega = eye(2)*1e-1;
 
             # landmark ids are numbered starting from 0
             k = j{1};
 
             Xr = XR(:,:,i);
             Xl = XL(:,k+1);
+            
+            % observation
             Z = Zl(i)(k);
+
             [valid, e, Jr, Jl] = projectionErrorAndJacobian(Xr, Xl, Z);
             if (!valid)
                 continue;
             end
 
-            chi = e' * Omega * e;
+            chi = e' * e;
             if chi > kernel_threshold
-                Omega *= sqrt(kernel_threshold / chi);
+                e *= sqrt(kernel_threshold / chi);
                 chi = kernel_threshold;
             else
                 inliers++;
@@ -140,12 +148,12 @@ function [H, b, chi_tot, inliers] = linearizeProjections(XR, XL, Zl, kernel_thre
             H_pose_proj = Jr' * Omega * Jl;
             H_proj_pose = Jl' * Omega * Jr;
             H_proj_proj = Jl' * Omega * Jl;
-            b_pose = Jr' * e;
-            b_proj = Jl' * e;
+            b_pose = Jr' * Omega * e;
+            b_proj = Jl' * Omega * e;
 
             #H and b indexes
-            pose_idx = 1 + (i - 1) * pose_dim;
-            landmark_idx = 1 + num_poses * pose_dim + k * landmark_dim;
+            pose_idx = pindex(i, 6, 3, num_poses, num_landmarks);
+            landmark_idx = lindex(k+1, 6, 3, num_poses, num_landmarks);
 
             H(pose_idx : pose_idx + pose_dim - 1, pose_idx : pose_idx + pose_dim - 1) += H_pose_pose;
 

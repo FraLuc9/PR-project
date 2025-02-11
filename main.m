@@ -7,7 +7,7 @@ source "./triangulation.m"
 source "./pose_projection.m"
 source "./total_LS.m"
 
-[odometry,gt_odom, XR, XR_true] = readTrajectory();
+[odometry, gt_odom, XR, XR_true] = readTrajectory();
 
 global K T z_near z_far width height;
 
@@ -15,6 +15,7 @@ global K T z_near z_far width height;
 
 meas = extractMeasurements();
 
+[odo_meas, gt_odo_meas] = calculateOdometryMeasurements(odometry, gt_odom);
 % K,T,z_near,z_far,width,height = extractCamParams();
 
 % ao = zeros(3,1);
@@ -114,25 +115,21 @@ end
 % printf("performing SVD on A...\n")
 
 X_ig = zeros(3,1);
-X_gt = zeros(3,1);
+
 for i = 1:1000
     
     % at least 2 hits to triangulate
-    if(size(A{i},1)) >=4
-        [~,~,V] = svd(A{i});
-    
+    if(size(A{i},1)) > 7
+
+        [~,~,V] = svd(A{i});    
         point = V(:,end);
         X_ig(:,i) = (point/point(end))(1:3);
-
-        [~,~,V_gt] = svd(A_gt{i});
-        point_gt = V_gt(:,end);
-        X_gt(:,i) = (point_gt/point_gt(end))(1:3);
     else
         X_ig(:,i) = [0;0;-1];
-        X_gt(:,i) = [0;0;-1];
     end
 end
 
 printf("done!\n")
 
 
+X_gt = extractWorld("data/world.dat");

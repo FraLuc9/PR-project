@@ -25,9 +25,9 @@ function [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z)
     e = Zhat - flatten4(Z);
     
 
-    rx = flatten3(transpose(Ri)*dRx0*Rj);
-    ry = flatten3(transpose(Ri)*dRy0*Rj);
-    rz = flatten3(transpose(Ri)*dRz0*Rj);
+    rx = flatten3(Ri'*dRx0*Rj);
+    ry = flatten3(Ri'*dRy0*Rj);
+    rz = flatten3(Ri'*dRz0*Rj);
     #CHORDAL JACOBIANS
     Ji = zeros(12, 6);
     Jj = zeros(12, 6);
@@ -100,17 +100,17 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
 endfunction
 # testino
 
-X1 = [1 0 0 1;
-      0 1 0 1;
-      0 0 1 0;
-      0 0 0 1];
-X2 = [1 0 0 2;
-      0 1 0 2;
-      0 0 1 0;
-      0 0 0 1];
+% X1 = [1 0 0 1;
+%       0 1 0 1;
+%       0 0 1 0;
+%       0 0 0 1];
+% X2 = [1 0 0 2;
+%       0 1 0 2;
+%       0 0 1 0;
+%       0 0 0 1];
 
-Z = inv(X1)*X2;
+% Z = inv(X1)*X2;
 
-[e, j1, j2] = poseErrorAndJacobian(X1, X2, Z);
-j1
-j2
+% [e, j1, j2] = poseErrorAndJacobian(X1, X2, Z);
+% j1
+% j2

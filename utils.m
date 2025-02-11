@@ -20,6 +20,11 @@ function R = getRotMat(a)
          sin(a) cos(a)];
 endfunction
 
+function p = t2v3D(T)
+    p = zeros(3,1);
+    p(1:2) = T(1:2,4);
+    p(3) = atan2(T(2,1),T(1,1));
+endfunction
 
 #3D
 #robot in SE(3) flattened on the ground
@@ -43,5 +48,18 @@ endfunction
 
 function r = flatten3(R)
     r = [R(1:3, 1); R(1:3,2); R(1:3,3)];
+endfunction
+
+function [odo_meas, gt_odo_meas] = calculateOdometryMeasurements(odometry, gt_odometry)
+    odo_meas = zeros(size(odometry)(1), size(odometry)(2));
+    gt_odo_meas = zeros(size(gt_odometry)(1), size(gt_odometry)(2));
+    odo_meas(:,1) = odometry(:,1);
+    gt_odo_meas(:,1) = gt_odometry(:,1);
+    assert(length(odo_meas) == length(gt_odo_meas));
+    for i = 1 : length(odo_meas) - 1
+        j = i + 1;
+        odo_meas(:,j) = t2v(inv(v2t(odometry(:,i)))*v2t(odometry(:,j)));
+        gt_odo_meas(:,j) = t2v(inv(v2t(gt_odometry(:,i)))*v2t(gt_odometry(:,j)));
+    endfor
 endfunction
 
