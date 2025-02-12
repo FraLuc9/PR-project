@@ -1,51 +1,52 @@
 source "./utils.m"
 
 
-%% REWRITE FOR 2D POSES MADONNA
 
-global dRx0 = [0 0 0; 0 0 -1; 0 1 0];
-global dRy0 = [0 0 1; 0 0 0; -1 0 0];
 global dRz0 = [0 -1 0; 1 0 0; 0 0 0];
 
 
 function [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z)
 
     global dRx0 dRy0 dRz0;
+    global pose_dim landmark_dim;
 
-    Ri = Xi(1:3,1:3);
-    Rj = Xj(1:3,1:3);
-    ti = Xi(1:3,4);
-    tj = Xj(1:3,4);
+    % SE(2) rotation around z
+    Ri = Xi(1:2,1:2);
+    Rj = Xj(1:2,1:2);
 
-    # prediction
-    g = inv(Xi)*Xj;
+    ti = Xi(1:2,4);
+    tj = Xj(1:2,4);
 
-    # CHORDAL ERROR
-    Zhat = flatten4(g);
-    e = Zhat - flatten4(Z);
-    
+    % SE(2) CHORDAL ERROR
+    g =inv(Xi)*Xj;
+    Zhat = [g(1:2,1);g(1:2,2);g(1:2,4)];
+    e = Zhat - [Z(1:2,1);Z(1:2,2);Z(1:2,4)];
 
-    rx = flatten3(Ri'*dRx0*Rj);
-    ry = flatten3(Ri'*dRy0*Rj);
-    rz = flatten3(Ri'*dRz0*Rj);
-    #CHORDAL JACOBIANS
-    Ji = zeros(12, 6);
-    Jj = zeros(12, 6);
+    % SE(2) CHORDAL JACOBIANS
+    Ji = zeros(6,3);
+    Jj = zeros(6,3);
 
-    Jj(1:9,4:6) = [rx ry rz];
-    Jj(10:12,1:3) = Ri';
-    Jj(10:12,4:6) = -Ri'*skew(tj);
-    
+    % SE(2) prediction derivative along the z axis
+    dg_alphaz = [Ri'*dRz0(1:2,1:2)*Rj Ri'*dRz0(1:2,1:2)*tj];
+
+    % SE(2) prediction derivative along the x and y directions
+    dg_tx = [zeros(2,2) Ri'* [1; 0]];
+    dg_ty = [zeros(2,2) Ri'* [0; 1]];
+
+    Jj(:,1) = reshape(dg_tx, 6, 1);
+    Jj(:,2) = reshape(dg_ty, 6, 1);
+    Jj(:,3) = reshape(dg_alphaz, 6, 1);
+
     Ji = -Jj;
 
 endfunction
 
 function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
 
+    global pose_dim landmark_dim;
+
     num_poses = length(XR);
     num_landmarks = length(XL);
-    pose_dim = 6;
-    landmark_dim = 3;
     system_size = pose_dim * num_poses + landmark_dim * num_landmarks;
     
     H = zeros(system_size, system_size);
@@ -54,21 +55,22 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
     inliers = 0;
     for i = 1 : length(Zr) -1
         
-        Omega = eye(12);
-        Omega(1:9, 1:9) *= 1e3;
+        Omega = eye(2 * pose_dim) * 1e3;
         
         % odometry measurement for pose i+1 seen by pose i
         Z = v2t3D(Zr(:,i+1));
         Xi = XR(:,:,i);
         Xj = XR(:,:,i+1);
         [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z);
+
         chi = e' * Omega * e;
         if chi > kernel_threshold
             Omega *= sqrt(kernel_threshold/chi);
             chi = kernel_threshold;
         else
             inliers++;
-        end
+        endif
+
         chi_tot += chi;
 
         H_ii = Ji' * Omega * Ji;
@@ -78,8 +80,8 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
         b_i = Ji' * Omega * e;
         b_j = Jj' * Omega * e;
 
-        pose_i_idx = 1 + (i - 1) * pose_dim;
-        pose_j_idx = 1 + i * pose_dim;
+        pose_i_idx = pindex(i, pose_dim, landmark_dim, num_poses, num_landmarks);
+        pose_j_idx = pindex(i+1, pose_dim, landmark_dim, num_poses, num_landmarks);
 
         H(pose_i_idx : pose_i_idx + pose_dim - 1, pose_i_idx : pose_i_idx + pose_dim - 1) += H_ii;
 
@@ -95,22 +97,4 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
 
     endfor
 
-
-
 endfunction
-# testino
-
-% X1 = [1 0 0 1;
-%       0 1 0 1;
-%       0 0 1 0;
-%       0 0 0 1];
-% X2 = [1 0 0 2;
-%       0 1 0 2;
-%       0 0 1 0;
-%       0 0 0 1];
-
-% Z = inv(X1)*X2;
-
-% [e, j1, j2] = poseErrorAndJacobian(X1, X2, Z);
-% j1
-% j2

@@ -3,29 +3,27 @@ source "./pose_pose.m"
 
 
 function [XR, XL] = boxPlus(XR, XL, dx)
-    pose_dim = 6;
-    landmark_dim = 3;
+    global pose_dim landmark_dim;
+
     num_poses = length(XR);
     num_landmarks = length(XL);
     for i = 1 : num_poses
-        pose_idx = 1 + (i - 1) * pose_dim;
-
+        pose_idx = pindex(i, pose_dim, landmark_dim, num_poses, num_landmarks);
         dxr = dx(pose_idx : pose_idx + pose_dim - 1);
         XR(:,:,i) = v2t3D(dxr) * XR(:,:,i);
-    end
+    endfor
 
     for j = 1 : num_landmarks
-        landmark_idx = 1 + num_poses * pose_dim + (j - 1) * landmark_dim;
+        landmark_idx = lindex(j, pose_dim, landmark_dim, num_poses, num_landmarks);
         dxl = dx(landmark_idx : landmark_idx + landmark_dim - 1);
         XL(:, j) += dxl;
-    end
+    endfor
 endfunction
 
 
 function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose, H, b] = totalLS(XR, XL,
         Z_cam, Z_odom, damping, kernel_threshold, num_iterations)
-    pose_dim = 6;
-    landmark_dim = 3;
+    global pose_dim landmark_dim;
 
     num_poses = length(XR);
     num_landmarks = length(XL);
@@ -50,8 +48,10 @@ function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose
         num_inliers_proj(i) = inliers_proj;
         tot_chi_pose(i) = chi_pose;
         num_inliers_pose(i) = inliers_pose;
-        H +=   H_proj;
-        b +=   b_proj;
+
+
+        H = H_pose + H_proj;
+        b = b_pose + b_proj;
 
         H += eye(system_size) * damping;
 
@@ -59,6 +59,7 @@ function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose
 
         dx(pose_dim + 1 : end) = -(H(pose_dim + 1 : end, pose_dim + 1 : end) \ b(pose_dim + 1 : end, 1));
         [XR, XL] = boxPlus(XR, XL, dx);
+
         printf("projection chi value: ");
         disp(tot_chi_proj(i));
         printf("projection inliers: ");
@@ -68,5 +69,5 @@ function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose
         printf("pose inliers: ");
         disp(num_inliers_pose(i));
         printf("+++++++++++++++++++++++++++++++\n")
-    end
+    endfor
 end
