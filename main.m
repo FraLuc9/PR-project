@@ -49,11 +49,11 @@ printf("pose error initial guess: \nrot: %d\ntransl: %d\n\n", rot_err_ig, transl
 
 
 % POST OPTIMIZATION ERRORS
+map_err_ls = mapMSE(XL_LS, XL_gt);
+printf("landmark error after BA: %d\n\n", map_err_ls);
+
 [rot_err_ls, transl_err_ls] = poseMSE(XR_LS,XR_gt);
 printf("pose error after BA: \nrot: %d\ntransl: %d\n\n", rot_err_ls, transl_err_ls);
-
-map_err_ls = mapMSE(XL_LS, XL_gt);
-printf("landmark error after BA: %d\n", map_err_ls);
 
 
 % PLOTS
