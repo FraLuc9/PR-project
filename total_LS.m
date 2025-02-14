@@ -8,22 +8,24 @@ function [XR, XL] = boxPlus(XR, XL, dx)
     num_poses = length(XR);
     num_landmarks = length(XL);
     for i = 1 : num_poses
-        pose_idx = pindex(i, pose_dim, landmark_dim, num_poses, num_landmarks);
+        pose_idx = pindex(i, num_poses, num_landmarks);
         dxr = dx(pose_idx : pose_idx + pose_dim - 1);
-        XR(:,:,i) = v2t3D(dxr) * XR(:,:,i);
+        XR(:,:,i) = v2t(dxr) * XR(:,:,i);
     endfor
 
     for j = 1 : num_landmarks
-        landmark_idx = lindex(j, pose_dim, landmark_dim, num_poses, num_landmarks);
+        landmark_idx = lindex(j, num_poses, num_landmarks);
         dxl = dx(landmark_idx : landmark_idx + landmark_dim - 1);
-        XL(:, j) += dxl;
+        XL(:, j) += 1.2*dxl;
     endfor
 endfunction
 
 
 function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose, H, b] = totalLS(XR, XL,
         Z_cam, Z_odom, damping, kernel_threshold, num_iterations)
+
     global pose_dim landmark_dim;
+
 
     num_poses = length(XR);
     num_landmarks = length(XL);
@@ -36,8 +38,9 @@ function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose
     system_size = pose_dim * num_poses + landmark_dim * num_landmarks;
 
     for i = 1 : num_iterations
-        printf("iteration ");
-        disp(i);
+
+        printf("iteration %d\n", i);
+
         H = zeros(system_size, system_size);
         b = zeros(system_size, 1);
 
@@ -48,7 +51,6 @@ function [XR, XL, tot_chi_proj, num_inliers_proj, tot_chi_pose, num_inliers_pose
         num_inliers_proj(i) = inliers_proj;
         tot_chi_pose(i) = chi_pose;
         num_inliers_pose(i) = inliers_pose;
-
 
         H = H_pose + H_proj;
         b = b_pose + b_proj;

@@ -1,7 +1,6 @@
 1;
 
 
-
 function [K,T,z_near,z_far,width,height] = extractCamParams()
     printf("extracting camera data...\n")
     filename = "data/camera.dat";
@@ -9,7 +8,7 @@ function [K,T,z_near,z_far,width,height] = extractCamParams()
 
     if file == -1
         error("Unable to open file");
-    end
+    endif
 
     global K T z_near z_far width height;
 
@@ -28,7 +27,7 @@ function [K,T,z_near,z_far,width,height] = extractCamParams()
                     line = fgetl(file);
 
                     K(i,:) = str2num(line);
-                end
+                endfor
             case "cam_transform:"
                 for i = 1:4
                     line = fgetl(file);
@@ -46,11 +45,12 @@ function [K,T,z_near,z_far,width,height] = extractCamParams()
                     case "height"
                         height = str2num(array{2});
                 end
-        end        
-    end
+        end    
+    endwhile
 
     fclose(file);
-    printf("done!\n")
+    printf("done!\n");
+
 endfunction
 
 
@@ -61,10 +61,8 @@ function [odometry, gt_odom, XR, XR_true] = readTrajectory()
 
     if file == -1
         error("Unable to open file");
-    end
+    endif
 
-    # let's not count the ids as odometry measurements should be ordered
-    #odometry = zeros(7,1);
     odometry = zeros(3,1);
     gt_odom = zeros(3,1);
     i = 1;
@@ -74,7 +72,7 @@ function [odometry, gt_odom, XR, XR_true] = readTrajectory()
         odometry(:,i) = str2double(line(2:4));
         gt_odom(:,i) = str2double(line(5:length(line)));
         i +=1;
-    end
+    endwhile
 
     fclose(file);
 
@@ -82,53 +80,13 @@ function [odometry, gt_odom, XR, XR_true] = readTrajectory()
     XR = zeros(4,4,length(odometry));
     XR_gt = zeros(4,4,length(odometry));
     for i=1:length(odometry)
-        XR(:,:,i) = v2t3D(odometry(:,i));
-        XR_true(:,:,i) = v2t3D(gt_odom(:,i));
-    end
-    printf("done!\n")
+        XR(:,:,i) = v2t(odometry(:,i));
+        XR_true(:,:,i) = v2t(gt_odom(:,i));
+    endfor
+
+    printf("done!\n");
+
 endfunction
-
-
-# by cycling through all the measurements files it puts together 
-# a big matrix with every landmark measurement in the image frame
-% function [pose, da, points] = extractMeasurements(filename)
-            
-%     seq = 0;
-%     pose = zeros(6,1);
-    
-%     file = fopen(filename, "r");
-%     das = zeros(3,1);
-%     points = zeros(2,1);
-%     if file == -1
-%         error("Unable to open file")
-%     end
-%     i = size(points, 2) + 1;
-%     while ~feof(file)
-%         line = strsplit(fgetl(file));
-%         switch line{1}
-%         # Assuming data files formatted as given, seq always gets updated first
-%             case "seq:"
-%                 seq = str2num(line{2});
-%             case "gt_pose:"
-%                 #inserting ground truth pose in the second half of the array so to maintain consistency with the odometry readings
-%                 pose(4:6) = str2double(line(2:length(line)));
-%             case "odom_pose:"
-%                 #of course noisy odometry goes in the first 3 positions
-%                 pose(1:3) = str2double(line(2:4));
-%             case "point"
-%                 #updates data association
-%                 da(1,i) = seq;
-%                 da(2,i) = str2num(line{2});
-%                 da(3,i) = str2num(line{3});
-%                 points(:,i) = str2double(line(4:5));
-%                 i +=1;
-%         end
-%     end
-
-%     fclose(file);
-% endfunction
-
-
 
 
 % measurements(i)(j)(k) where i is the measurement, j is the measured point and k=1 gives the point id while k=2 gives the point coords
@@ -143,8 +101,8 @@ function measurements = extractMeasurements()
     for i = 1 : length(directory)
         if !isempty(regexp(directory(i).name, string, 'once'));
             n++;
-        end
-    end
+        endif
+    endfor
 
     measurements = containers.Map('KeyType', 'int32', 'ValueType', 'any');
 
@@ -155,15 +113,15 @@ function measurements = extractMeasurements()
             meas_str = strcat(meas_str, "0");
             if i-1 < 10
                 meas_str = strcat(meas_str, "0");
-            end
-        end
+            endif
+        endif
 
         meas_str = strcat(meas_str, int2str(i-1));
         meas_str = strcat(meas_str, ".dat");
         file = fopen(meas_str, "r");
         if file == -1
             error("Unable to open file")
-        end
+        endif
 
         while ~feof(file)
             line = strsplit(fgetl(file));
@@ -177,20 +135,22 @@ function measurements = extractMeasurements()
                     meas(landmark_id) = [points];
             end
             
-        end
+        endwhile
+
         fclose(file);
         measurements(i) = meas;
         
-    end
-    printf("done!\n")
+    endfor
+    printf("done!\n");
+
 endfunction
-# isKey(m(1),5) RITORNA BOOLEANO
+
 
 #returns matrix where every column represents a 3D landmark position
 #ignores indices as it expects the .dat file to have them ordered already
-function P = extractWorld(filename)
-
+function XL_gt = extractWorld()
+    filename = "data/world.dat";
     Z = load(filename);
-    P = Z'(2:4,:);
+    XL_gt = Z'(2:4,:);
 
 endfunction

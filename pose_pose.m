@@ -18,10 +18,16 @@ function [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z)
     tj = Xj(1:2,4);
 
     % SE(2) CHORDAL ERROR
-    g =inv(Xi)*Xj;
-    Zhat = [g(1:2,1);g(1:2,2);g(1:2,4)];
-    e = Zhat - [Z(1:2,1);Z(1:2,2);Z(1:2,4)];
+    % g =inv(Xi)*Xj;
 
+    % Zhat = [g(1:2,1);g(1:2,2);g(1:2,4)];
+    % e = Zhat - [Z(1:2,1);Z(1:2,2);Z(1:2,4)]
+    
+    Zhat = eye(4);
+    Zhat(1:2,1:2) = Ri'*Rj;
+    Zhat(1:2,4) = Ri'*(tj - ti);
+    e = reshape((Zhat - Z)(1:2,[1,2,4]), 6, 1);
+    
     % SE(2) CHORDAL JACOBIANS
     Ji = zeros(6,3);
     Jj = zeros(6,3);
@@ -33,8 +39,13 @@ function [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z)
     dg_tx = [zeros(2,2) Ri'* [1; 0]];
     dg_ty = [zeros(2,2) Ri'* [0; 1]];
 
+    % dh_x
     Jj(:,1) = reshape(dg_tx, 6, 1);
+
+    % dh_y
     Jj(:,2) = reshape(dg_ty, 6, 1);
+
+    %dh_alphaz
     Jj(:,3) = reshape(dg_alphaz, 6, 1);
 
     Ji = -Jj;
@@ -53,12 +64,13 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
     b = zeros(system_size, 1);
     chi_tot = 0;
     inliers = 0;
-    for i = 1 : length(Zr) -1
+    for i = 1 : length(Zr)
         
-        Omega = eye(2 * pose_dim) * 1e3;
+        Omega = eye(2 * pose_dim)*1e3;
+        % Omega(5:6,5:6) *= 1e3;
         
         % odometry measurement for pose i+1 seen by pose i
-        Z = v2t3D(Zr(:,i+1));
+        Z = v2t(Zr(:,i));
         Xi = XR(:,:,i);
         Xj = XR(:,:,i+1);
         [e, Ji, Jj] = poseErrorAndJacobian(Xi, Xj, Z);
@@ -80,8 +92,8 @@ function [H, b, chi_tot, inliers] = linearizePoses(XR, XL, Zr, kernel_threshold)
         b_i = Ji' * Omega * e;
         b_j = Jj' * Omega * e;
 
-        pose_i_idx = pindex(i, pose_dim, landmark_dim, num_poses, num_landmarks);
-        pose_j_idx = pindex(i+1, pose_dim, landmark_dim, num_poses, num_landmarks);
+        pose_i_idx = pindex(i, num_poses, num_landmarks);
+        pose_j_idx = pindex(i+1, num_poses, num_landmarks);
 
         H(pose_i_idx : pose_i_idx + pose_dim - 1, pose_i_idx : pose_i_idx + pose_dim - 1) += H_ii;
 
