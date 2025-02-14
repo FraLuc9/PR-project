@@ -10,7 +10,7 @@ The triangulation step is performed using the multi-view DLT linear algorithm, t
 I chose to filter out the points with less than 4 measurements in my final simulations, as the 2 and 3-view triangulations gave rise to outliers which more often than not end up outside of the camera boundaries during the reprojections, and end up not having any effect on the convergence of the pose.
 
 # Bundle Adjustment
-The Total Least Squares algorithm acts on pose-pose and pose-projection, as the data does not have $\R^3$ landmark measurements in the world. I chose to build up the pose-pose measurements on pairs of subsequent poses i, j where j = i + 1, as the data did not explicitly provide the relative odometry measures between one pose to the other but only the total rototranslations with respect to the origin.
+The Total Least Squares algorithm acts on pose-pose and pose-projection, as the data does not have $\mathbb{R}^3$ landmark measurements in the world. I chose to build up the pose-pose measurements on pairs of subsequent poses i, j where j = i + 1, as the data did not explicitly provide the relative odometry measures between one pose to the other but only the total rototranslations with respect to the origin.
 The pose errors and jacobians were implemented by using the chordal distance to avoid implementing the boxminus operator. As the poses are in $SE(2)$ I only considered $x$, $y$ and $\alpha_z$ components when building the jacobians.
 The same applies to the projection part, in which the robot side of the jacobian only considers the columns associated with $x$, $y$ and $\alpha_z$.
 When calculating the prediction on the projections, any point outside of the image boundaries or camera depth range gets discarded and does not contribute to that step's error and jacobian.
@@ -19,7 +19,7 @@ Robot pose operations are executed using $SE(3)$ homogeneous transformations by 
 
 As some landmarks are never seen, a nonzero damping is necessary in order to avoid a singular Hessian matrix due to zeroed landmark-landmark jacobians.
 
-The perturbation vector considers again SE(2) poses and so its total length is 3*(num_poses + num_landmarks).
+The perturbation vector considers again $SE(2)$ poses and so its total length is 3*(num_poses + num_landmarks).
 
 Lowering the kernel threshold seems to give some negligible improvements in the map estimation, though higher values do not hinder the convergence in any way. Values as high as $10^3$ provide almost identical results to the ones provided below.
 I found the framework to be robust enough to find a great solution given a good enough initial estimate of the landmarks in the world. The presence of outliers does not in fact influence the final result as there are enough good measurements to make up for the noise.
