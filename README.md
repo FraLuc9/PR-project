@@ -26,8 +26,12 @@ I found the framework to be robust enough to find a great solution given a good 
 
 When calculating the MSE on the landmarks I do not consider unseen nor discarded points, which are identified as $[0 ,0, -1]^T$.
 
-# LATEST SIMULATION PARAMETERS
+# HOW TO RUN
+To run the simuation it is sufficient to run the command "octave main.m" from inside the main folder.
 
+Otherwise it can be started from inside the Octave interface by first typing "octave-cli" and then "main".
+
+# LATEST SIMULATION PARAMETERS
 kernel_threshold = 1e1
 
 damping = 	   1 	(required)
@@ -42,7 +46,6 @@ pose rotation MSE initial guess: 0.0119705
 pose translation MSE initial guess: 0.0122911
 
 # POSTERIOR ERRORS
-
 landmark MSE after BA: 0.340098
 
 pose rotation MSE after BA: 1.26684e-05
